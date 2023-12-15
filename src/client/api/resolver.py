@@ -28,4 +28,9 @@ def delete(table: str, index: int):
         params={"object_id": index}
     )
 
-#TODO Авторизация
+def login(name: str, password: str):
+    answer = requests.get(
+        url=f'{server_url}/Users/login',
+        params={"name": name, "password": password}
+    )
+    return answer.json()

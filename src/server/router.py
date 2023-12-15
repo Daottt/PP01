@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from src.database.models import BaseModelModify
 
 class Router(Generic[TModel]):
-    resolver: Resolver[TModel]
+    #resolver: Resolver[TModel]
 
     def __init__(self, name, resolver: Resolver[TModel]):
         self.name = name

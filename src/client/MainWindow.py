@@ -1,17 +1,19 @@
-from PySide6.QtWidgets import QMainWindow, QLineEdit, QComboBox, QDateEdit, QDialog, QTableWidgetItem
-
+from PySide6.QtWidgets import QMainWindow, QTableWidgetItem, QTableWidget, QMessageBox
+from PySide6.QtCore import Qt
 from src.client.ui_main import Ui_MainWindow
-from src.client.new_user import Ui_Dialog as user
-from src.client.new_record import Ui_Dialog as record
+from src.client.DataWindow import DataWindow
 from src.client.api.resolver import *
+from src.client.api.statistics import update_statistics
 
 TablesList = ["Users", "Requests"]
-WindowList = [user, record]
 
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
         self.current_table_index = None
+        self.current_table_keys = []
+        self.user_data = None
+
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.ui.ShowTables.clicked.connect(lambda: self.ChangeTab(0))
@@ -19,10 +21,32 @@ class MainWindow(QMainWindow):
         self.ui.Add.clicked.connect(self.OpenNewWindow)
         self.ui.Update.clicked.connect(self.OpenNewWindow)
         self.ui.Delete.clicked.connect(self.delete_data)
+        self.ui.LoginButton.clicked.connect(self.Login)
+        self.ui.TableSearch.textChanged.connect(self.Search)
+
+        self.ui.stackedWidget.setCurrentIndex(2)
+        self.ui.navButtons.setVisible(False)
 
         table_list = self.ui.TabelList
         table_list.currentRowChanged.connect(self.TableSelect)
         table_list.addItems(TablesList)
+
+    def Login(self):
+        self.user_data = login(self.ui.loginText.text(), self.ui.passwordText.text())
+        print(self.user_data)
+        if not self.user_data:
+            self.ui.loginInfo.setText("Неверный логин или пароль")
+            return
+
+        self.ui.navButtons.setVisible(True)
+        self.ui.stackedWidget.setCurrentIndex(0)
+
+        if self.user_data[3] == 1:
+            self.ui.TabelList.setEnabled(False)
+            self.TableSelect(1)
+            self.ui.Add.setEnabled(False)
+            self.ui.Delete.setEnabled(False)
+        print("Доступ :", self.user_data[3])
 
     def TableSelect(self, table_index):
         print(f"Таблица: {table_index}")
@@ -31,6 +55,11 @@ class MainWindow(QMainWindow):
 
     def UpdateTableData(self):
         data = getAll(TablesList[self.current_table_index])
+        self.current_table_keys = data[0].keys()
+
+        if self.user_data[3] == 1:
+            data = self.sort_data_on_id(data)
+            if not data: return
 
         table = self.ui.Table
         table.setRowCount(len(data))
@@ -45,41 +74,49 @@ class MainWindow(QMainWindow):
                     table.setItem(i, row_index, QTableWidgetItem(str(item)))
                 row_index += 1
 
+    def sort_data_on_id(self, data):
+        new_data = []
+        for item in data:
+            if "user_id" not in item: return
+            if item["user_id"] == self.user_data[0]:
+                new_data.append(item)
+        return new_data
+
     def ChangeTab(self, tab_index):
         self.ui.ShowTables.setEnabled(not self.ui.ShowTables.isEnabled())
         self.ui.ShowStats.setEnabled(not self.ui.ShowStats.isEnabled())
 
+        if not self.ui.ShowStats.isEnabled():
+            update_statistics(self.ui.CompleteSum, self.ui.AvgCompletionTime, self.ui.DiseaseTypes)
+
         self.ui.stackedWidget.setCurrentIndex(tab_index)
 
+    def Search(self, search):
+        table = self.ui.Table
+        table.setCurrentItem(None)
+        if not search: return
+        matching_items = table.findItems(search, Qt.MatchFlag.MatchContains)
+        if not matching_items: return
+        table.setCurrentItem(matching_items[0])
+
     def OpenNewWindow(self):
-        self.new_window = QDialog()
-        self.ui_window = user()
-        self.ui_window.setupUi(self.new_window)
-        self.ui_window.back.clicked.connect(lambda : self.new_window.close())
+        self.data_window = DataWindow(self.user_data[3], TablesList[self.current_table_index])
 
         sender = self.sender()
         if sender.objectName() == "Add":
-            self.ui_window.add.clicked.connect(self.add_data)
-            self.ui_window.label.setText("Создать запись")
-            self.ui_window.add.setText("Создать")
+            self.data_window.ui.add.clicked.connect(self.add_data)
+            self.data_window.ui.label.setText("Создать запись")
+            self.data_window.ui.add.setText("Создать")
         else:
-            self.ui_window.add.clicked.connect(self.update_data)
-            self.ui_window.label.setText("Обновить запись")
-            self.ui_window.add.setText("Обновить")
-
-        self.new_window.show()
+            self.data_window.SetData(self.ui.Table)
+            self.data_window.ui.add.clicked.connect(self.update_data)
+            self.data_window.ui.label.setText("Обновить запись")
+            self.data_window.ui.add.setText("Обновить")
 
     def get_model(self) -> dict:
-        #TODO проверка на отсутствие данных
-
-        data = getAll(TablesList[self.current_table_index])
-        keys: list = data[0].keys()
-        values: list = ['0']
-        for layout_item in self.layout_widgets(self.ui_window.DataContainer):
-            widget = layout_item.widget()
-            values.append(self.get_data_from_widget(widget))
-        self.new_window.close()
-        return dict(zip(keys, values))
+        values: list = self.data_window.GetData()
+        self.data_window.close()
+        return dict(zip(self.current_table_keys, values))
 
     def get_current_id(self) -> int:
         index = self.ui.Table.selectedIndexes()[0]
@@ -95,19 +132,7 @@ class MainWindow(QMainWindow):
 
     def delete_data(self):
         delete(TablesList[self.current_table_index], self.get_current_id())
-        #TODO Окно подтверждения
+        ret = QMessageBox.warning(self, "Подтверждение", f"Вы хотите удалить запись с id:{self.get_current_id()}",
+                                  QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel)
+        if ret != QMessageBox.StandardButton.Yes: return
         self.UpdateTableData()
-
-    def layout_widgets(self, layout):
-        return (layout.itemAt(i) for i in range(layout.count()))
-
-    def get_data_from_widget(self, widget):
-        if isinstance(widget, QLineEdit):
-            return widget.text()
-        elif isinstance(widget, QComboBox):
-            return widget.currentIndex()
-        elif isinstance(widget, QDateEdit):
-            return widget.text()
-        else:
-            print("Виджет неизвестного типа")
-
