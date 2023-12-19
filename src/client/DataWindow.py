@@ -3,10 +3,12 @@ from PySide6.QtCore import QDate
 from src.client.ui_data import Ui_Dialog
 
 TableFields = {"Users": [[QLineEdit, "Имя", 0], [QLineEdit, "Пароль", 0], [QComboBox, ["Менеджер", "Ветеринар"], 0]],
-               "Requests": [[QLineEdit, "Дата начала заболевания", 0], [QLineEdit, "Животное", 0],
+               "Requests": [[QDateEdit, "Дата начала заболевания", 0], [QLineEdit, "ID животного", 0],
                             [QLineEdit, "ID ветеринара", 0], [QLineEdit, "Тип лечения", 1],
-                            [QLineEdit, "Описание заболевания", 1], [QLineEdit, "Статус лечения", 1],
-                            [QLineEdit, "Дата выздоровления", 1]]}
+                            [QLineEdit, "ID заболевания", 0], [QLineEdit, "Статус лечения", 1],
+                            [QDateEdit, "Дата выздоровления", 1]],
+               "Animals": [[QLineEdit, "Название животного", 0]],
+               "Diseases": [[QLineEdit, "Название болезни", 0]]}
 
 class DataWindow(QDialog):
     def __init__(self, access, table):
@@ -29,7 +31,7 @@ class DataWindow(QDialog):
                 case QComboBox():
                     widget.addItems(item[1])
                 case QDateEdit():
-                    pass
+                    widget.setCalendarPopup(True)
                 case _:
                     print("Виджет неизвестного типа")
                     return

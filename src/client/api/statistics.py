@@ -30,7 +30,7 @@ def avg_completion_time(data: list):
 def disease_types(qlist: QListWidget, data: list):
     types: dict = {}
     for item in data:
-        disease = item['disease_description']
+        disease = item['disease_id']
         if types.__contains__(disease):
             types[disease] += 1
         else:

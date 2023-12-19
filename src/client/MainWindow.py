@@ -5,7 +5,7 @@ from src.client.DataWindow import DataWindow
 from src.client.api.resolver import *
 from src.client.api.statistics import update_statistics
 
-TablesList = ["Users", "Requests"]
+TablesList = ["Users", "Requests", "Animals", "Diseases"]
 
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
@@ -131,8 +131,10 @@ class MainWindow(QMainWindow):
         self.UpdateTableData()
 
     def delete_data(self):
-        delete(TablesList[self.current_table_index], self.get_current_id())
         ret = QMessageBox.warning(self, "Подтверждение", f"Вы хотите удалить запись с id:{self.get_current_id()}",
                                   QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel)
-        if ret != QMessageBox.StandardButton.Yes: return
+        if ret != QMessageBox.StandardButton.Yes:
+            return
+
+        delete(TablesList[self.current_table_index], self.get_current_id())
         self.UpdateTableData()

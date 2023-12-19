@@ -10,10 +10,16 @@ class Users(BaseModelModify):
     power_level: Optional[int] = None
 
 class Requests(BaseModelModify):
-    add_date: str
-    animal: str
+    add_date: Optional[str] = None
+    animal_id: Optional[int]
     user_id: Optional[int] = None
     treatment_type: Optional[str] = None
-    disease_description: Optional[str] = None
+    disease_id: Optional[int] = None
     treatment_status: Optional[str] = None
     end_date: Optional[str] = None
+
+class Animals(BaseModelModify):
+    name: Optional[str] = None
+
+class Diseases(BaseModelModify):
+    name: Optional[str] = None
